@@ -1,0 +1,49 @@
+# ---- Node / Next.js ----
+node_modules/
+.next/
+out/
+dist/
+build/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ---- FastAPI / Python ----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+venv/
+env/
+.env/
+.envrc
+.DS_Store
+
+# ---- IDE / OS Files ----
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+.DS_Store
+
+# ---- API Keys or Secrets ----
+# Ignore any file that might contain keys or tokens
+secret_*.py
+config.json
+apikeys.txt
+*.key
+*.pem
+
+# ---- Misc ----
+*.bak
+*.tmp
