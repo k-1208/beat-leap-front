@@ -32,7 +32,7 @@ games_status = {
     "ai_or_not": True,
     "interro_room": True,
     "story_hunt": False,
-    "pixel_fog": False,
+    "pixel_fog": True,
 }
 
 @app.get("/games/status")

@@ -170,7 +170,7 @@ export default function BeatLeap() {
           status.story_hunt
         )}
         {renderCard(
-          "#",
+          "/pixel_fog",
           "/images/image 220.png",
           "PIXEL FOG",
           status.pixel_fog
