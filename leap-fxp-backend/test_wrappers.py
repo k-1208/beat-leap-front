@@ -1,12 +1,18 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Dict
 import random
 import os
+import hashlib
+
 
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
+
+import uuid
+SERVER_SESSION_KEY = str(uuid.uuid4())  # changes on every restart
 
 
 # --- FastAPI Setup ---
@@ -27,6 +33,73 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- Simulated Team Database ---
+# Pre-set team logins (you can load from a real DB or file)
+teams = {
+    "team_phoenix": hashlib.sha256("rise123".encode()).hexdigest(),
+    "team_orion": hashlib.sha256("star456".encode()).hexdigest(),
+    "team_zenith": hashlib.sha256("peak789".encode()).hexdigest(),
+}
+
+# Store scores securely
+scores: Dict[str, int] = {}
+
+
+# --- Models ---
+class LoginRequest(BaseModel):
+    team_name: str
+    password: str
+
+
+class ScoreSubmission(BaseModel):
+    team_name: str
+    password: str
+    score: int
+
+
+class AskRequest(BaseModel):
+    team_name: str
+    password: str
+    user_input: str
+    session_id: str
+    server_session: str   # ✅ Added this field so we can verify backend session
+
+# --- Endpoints ---
+
+@app.post("/login")
+def login(req: LoginRequest):
+    """Authenticate team login"""
+    if req.team_name not in teams:
+        raise HTTPException(status_code=401, detail="Team not registered")
+    
+    hashed_pw = hashlib.sha256(req.password.encode()).hexdigest()
+    if teams[req.team_name] != hashed_pw:
+        raise HTTPException(status_code=401, detail="Incorrect password")
+
+    return {
+        "status": "success",
+        "message": "Login successful!",
+        "server_session": SERVER_SESSION_KEY
+    }
+
+
+@app.post("/submit_score")
+def submit_score(data: ScoreSubmission):
+    """Submit final score (requires authentication)"""
+    hashed_pw = hashlib.sha256(data.password.encode()).hexdigest()
+    
+    if data.team_name not in teams or teams[data.team_name] != hashed_pw:
+        raise HTTPException(status_code=401, detail="Authentication failed")
+
+    scores[data.team_name] = data.score
+    return {"status": "success", "message": "Score submitted successfully"}
+
+
+@app.get("/scores")
+def get_scores():
+    """Admin-only endpoint (optional)"""
+    return scores
+
 # Controlled from backend only
 games_status = {
     "ai_or_not": True,
@@ -34,6 +107,7 @@ games_status = {
     "story_hunt": False,
     "pixel_fog": False,
 }
+
 
 @app.get("/games/status")
 def get_games_status():
@@ -48,6 +122,7 @@ try:
     load_dotenv()  # loads .env file
 
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    print(os.getenv("GEMINI_API_KEY"))
 except Exception as e:
     print("Error initializing Gemini client:")
     print("Ensure GEMINI_API_KEY environment variable is set.")
@@ -150,15 +225,45 @@ class GuessingGame:
 game = GuessingGame(client)
 
 
-# --- API Endpoints ---
 @app.post("/ask")
-async def ask_oracle(message: UserMessage):
+async def ask_oracle(message: AskRequest):
     """
-    Receives user's message, queries Gemini, returns response.
+    Receives user's message, authenticates the team, and checks session before querying Gemini.
     """
-    response = game.ask_oracle(message.user_input)
-    print(response)
-    return {"response": response}
+    print(f"Received prompt from {message.team_name}: {message.user_input}")
+
+    # --- Step 1: Check if server session is valid ---
+    if message.server_session != SERVER_SESSION_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail="⚠️ Server restarted. Please log in again."
+        )
+
+    # --- Step 2: Check team authentication ---
+    if message.team_name not in teams:
+        raise HTTPException(
+            status_code=401,
+            detail="⚠️ You have not logged in. Invalid team name."
+        )
+
+    hashed_pw = hashlib.sha256(message.password.encode()).hexdigest()
+    if teams[message.team_name] != hashed_pw:
+        raise HTTPException(
+            status_code=401,
+            detail="⚠️ Incorrect password. Please log in again."
+        )
+
+    # --- Step 3: Process the prompt ---
+    try:
+        response = game.ask_oracle(message.user_input)
+        print(f"[{message.team_name}] Prompt: {message.user_input}")
+        print(f"[Oracle] Response: {response}")
+        return {"response": response}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Oracle malfunction: {str(e)}"
+        )
 
 
 @app.get("/")
@@ -195,4 +300,4 @@ def verify_guess(guess: GuessResponse):
     return {
         "result": "✓ CORRECT!" if correct else "✗ WRONG!",
         "correct": correct
-    }
+    } 
