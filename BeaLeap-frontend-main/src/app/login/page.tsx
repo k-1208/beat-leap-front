@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { saveTeamSession } from "@/lib/session";
+
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,7 +27,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
+    console.log("WHATS GOING ON GUYS")
     try {
       const res = await fetch("http://127.0.0.1:8000/login", {
         method: "POST",
@@ -37,18 +39,28 @@ export default function LoginPage() {
 
       if (!res.ok) {
         if (res.status === 401) {
+                  console.log("GOT HERE....1")
+
           setError("Invalid team name or password.");
         } else {
+                  console.log("GOT HERE...2.")
+
           setError(data.detail || "Login failed. Try again.");
         }
+              console.log("GOT HERE....3")
+
         setLoading(false);
         return;
       }
 
       // ✅ Store credentials and session
+      console.log("GOT HERE....")
       localStorage.setItem("team_name", teamName);
       localStorage.setItem("team_password", password);
-      localStorage.setItem("server_session", data.server_session || "true");
+      localStorage.setItem("server_session", data.server_session);;
+
+    saveTeamSession(teamName, password, data.server_session);
+
 
       router.replace("/"); // redirect to main menu
     } catch (err) {

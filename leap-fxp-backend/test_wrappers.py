@@ -15,8 +15,12 @@ import uuid
 SERVER_SESSION_KEY = str(uuid.uuid4())  # changes on every restart
 
 
+
+
 # --- FastAPI Setup ---
 app = FastAPI()
+
+
 origins = [
     "http://localhost:3000",         # Next.js local dev
     "http://127.0.0.1:3000",         # Sometimes needed too
@@ -33,10 +37,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi import Header
+
+
+
+@app.get("/games/status")
+def get_games_status(server_session: str = Header(None)):
+    """Return the open/closed status of all games."""
+    print(server_session)
+    if server_session != SERVER_SESSION_KEY:
+        print(server_session, SERVER_SESSION_KEY)
+        raise HTTPException(status_code=401, detail="Session expired. Please log in again.")
+    return games_status
+ 
+
 # --- Simulated Team Database ---
 # Pre-set team logins (you can load from a real DB or file)
 teams = {
-    "team_phoenix": hashlib.sha256("rise123".encode()).hexdigest(),
+    "test": hashlib.sha256("test".encode()).hexdigest(),
     "team_orion": hashlib.sha256("star456".encode()).hexdigest(),
     "team_zenith": hashlib.sha256("peak789".encode()).hexdigest(),
 }
@@ -109,10 +127,6 @@ games_status = {
 }
 
 
-@app.get("/games/status")
-def get_games_status():
-    """Return the open/closed status of all games."""
-    return games_status
 
 # --- Gemini Client Initialization ---
 try:
@@ -148,7 +162,7 @@ class GuessingGame:
         self.guesses_used = 0
         self.prompt_count = 0
 
-    def ask_oracle(self, user_input: str) -> str:
+    def ask_oracle(self, team_name, user_input: str) -> str:
         self.prompt_count += 1
         system_prompt = f"""
         You are the AI "Game Master" for a word-guessing game. Your role is the cryptic "Keeper" of the secret.
@@ -207,6 +221,7 @@ class GuessingGame:
 
             # Check if correct guess
             if self.secret_phrase.lower().strip() in user_input.lower().strip():
+                print(f"interrogation room score for team {team_name}: {self.prompt_count}")
                 return f"🔥 CONGRATULATIONS! You have divined the secret phrase: {self.secret_phrase}!\n\nScore(Number of Prompts): {self.prompt_count}\n\nGame over!"
 
             # Safety check
@@ -232,6 +247,8 @@ async def ask_oracle(message: AskRequest):
     """
     print(f"Received prompt from {message.team_name}: {message.user_input}")
 
+    print(message, "WHATTTT")
+
     # --- Step 1: Check if server session is valid ---
     if message.server_session != SERVER_SESSION_KEY:
         raise HTTPException(
@@ -253,9 +270,11 @@ async def ask_oracle(message: AskRequest):
             detail="⚠️ Incorrect password. Please log in again."
         )
 
+
+
     # --- Step 3: Process the prompt ---
     try:
-        response = game.ask_oracle(message.user_input)
+        response = game.ask_oracle(message.team_name, message.user_input)
         print(f"[{message.team_name}] Prompt: {message.user_input}")
         print(f"[Oracle] Response: {response}")
         return {"response": response}
@@ -271,8 +290,6 @@ async def root():
     return {"message": "Oracle Guessing Game API is running!"}
 
 
-class GuessResponse(BaseModel):
-    user_guess: str
 
 IMAGES = [
     {"url": "https://picsum.photos/600/400?random=1", "type": "human"},
@@ -283,21 +300,45 @@ IMAGES = [
 
 current_image = {"type": None, "url": None}
 
-@app.get("/image")
-def get_image():
-    """Send a random image"""
+# --- Request Models ---
+class AuthRequest(BaseModel):
+    team_name: str
+    password: str
+    session_id: str
+    server_session: str
+
+class GuessRequest(AuthRequest):
+    user_guess: str
+
+
+# --- Helpers ---
+def authenticate(team_name: str, password: str, server_session: str):
+    if server_session != SERVER_SESSION_KEY:
+        raise HTTPException(status_code=401, detail="Invalid session key.")
+
+
+# --- Endpoints ---
+@app.post("/image")
+def get_image(request: AuthRequest):
+    """Send a random image (only if authenticated)"""
+    authenticate(request.team_name, request.password, request.server_session)
+
     global current_image
     current_image = random.choice(IMAGES)
     return {"image_url": current_image["url"]}
 
-@app.post("/verify")
-def verify_guess(guess: GuessResponse):
-    """Check if the user's guess was correct"""
-    if current_image["type"] is None:
-        return {"error": "No image has been sent yet."}
 
-    correct = guess.user_guess.lower() == current_image["type"]
+@app.post("/verify")
+def verify_guess(request: GuessRequest):
+    """Check if the user's guess was correct (only if authenticated)"""
+    authenticate(request.team_name, request.password, request.server_session)
+    team_name = request.team_name
+    if current_image["type"] is None:
+        raise HTTPException(status_code=400, detail="No image has been sent yet.")
+
+    correct = request.user_guess.lower() == current_image["type"]
+    print(f"CORRECT by team {team_name}" if correct else f"WRONG by team {team_name}")
     return {
         "result": "✓ CORRECT!" if correct else "✗ WRONG!",
         "correct": correct
-    } 
+    }

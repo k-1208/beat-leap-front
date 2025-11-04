@@ -258,6 +258,8 @@
 
 "use client";
 import React, { useRef, useState } from "react";
+import { getTeamSession } from "@/lib/session"; // adjust import path
+
 
 export default function InterrogationRoom() {
   const [prompt, setPrompt] = useState("");
@@ -269,15 +271,13 @@ export default function InterrogationRoom() {
   async function sendPrompt() {
     if (!prompt.trim() || loading) return;
 
-    // 🔒 Retrieve login credentials from sessionStorage
-    const team_name = sessionStorage.getItem("team_name");
-    const password = sessionStorage.getItem("password");
-
-    if (!team_name || !password) {
+    const session = getTeamSession();
+    if (!session) {
       setReply("⚠️ Please log in first before playing!");
       return;
     }
 
+    const { team_name, password, server_session } = session;
     // cancel previous request if active
     if (abortRef.current) abortRef.current.abort();
     abortRef.current = new AbortController();
@@ -288,11 +288,11 @@ export default function InterrogationRoom() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-    team_name: sessionStorage.getItem("team_name"),
-    password: sessionStorage.getItem("password"),
+    team_name: team_name,
+    password: password, 
     user_input: prompt,          // your text box input
     session_id: "session_001",      // any random string
-    server_session: sessionStorage.getItem("server_session"),
+    server_session: server_session,
         }),
         signal: abortRef.current.signal,
       });

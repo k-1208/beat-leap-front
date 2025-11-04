@@ -1,5 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { getTeamSession } from "@/lib/session"; // adjust import path
+
 
 export default function AIorNOT() {
   const [timeLeft, setTimeLeft] = useState(480); // 8 minutes
@@ -7,26 +9,29 @@ export default function AIorNOT() {
   const [currentImage, setCurrentImage] = useState<{ url: string } | null>(null);
   const [feedback, setFeedback] = useState("");
 
-  // --- Helper: get stored session details ---
-  const getAuthPayload = () => ({
-    team_name: localStorage.getItem("team_name"),
-    team_password: localStorage.getItem("team_password"),
-    server_session: localStorage.getItem("server_session"),
-  });
+    const session = getTeamSession();
+    if (!session) {
+      return;
+    }
 
+    const { team_name, password, server_session } = session;
   // --- Load next image (authenticated) ---
   const loadNextImage = async () => {
     try {
       const res = await fetch("http://localhost:8000/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(getAuthPayload()),
+        body: JSON.stringify(    
+          {team_name: team_name,
+    password: password, 
+    session_id: "session_001",      // any random string
+    server_session: server_session}),
       });
 
       if (!res.ok) {
         if (res.status === 401) {
           alert("Not logged in. Redirecting to login...");
-          window.location.href = "/login";
+          window.location.href = "../login";
         }
         return;
       }
@@ -48,8 +53,11 @@ export default function AIorNOT() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...getAuthPayload(),
-          user_guess: guessIsAI ? "ai" : "human",
+              team_name: team_name,
+              password: password, 
+              session_id: "session_001",      // any random string
+              server_session: server_session,
+              user_guess: guessIsAI ? "ai" : "human",
         }),
       });
 
