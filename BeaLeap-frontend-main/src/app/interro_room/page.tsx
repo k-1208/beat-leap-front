@@ -257,6 +257,7 @@
 // } */ 
 
 "use client";
+import { getTeamSession } from "@/lib/session";
 import React, { useMemo, useEffect, useRef, useState } from "react";
 
 
@@ -279,7 +280,7 @@ export default function InterrogationRoom() {
 
     const { team_name, password, server_session } = session;
     // cancel previous request if active
-    if (abortRef.current) abortRef.current.abort();
+    if (abortRef.current) abortRef.current.abort(); 
     abortRef.current = new AbortController();
 
     setLoading(true);

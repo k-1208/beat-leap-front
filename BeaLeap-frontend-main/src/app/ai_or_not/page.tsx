@@ -2,30 +2,33 @@
 import React, { useState, useEffect } from "react";
 import { getTeamSession } from "@/lib/session"; // adjust import path
 
-
 export default function AIorNOT() {
   const [timeLeft, setTimeLeft] = useState(480); // 8 minutes
   const [score, setScore] = useState(0);
   const [currentImage, setCurrentImage] = useState<{ url: string } | null>(null);
   const [feedback, setFeedback] = useState("");
 
-    const session = getTeamSession();
-    if (!session) {
-      return;
-    }
+  // NEW: lightbox state
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
-    const { team_name, password, server_session } = session;
+  const session = getTeamSession();
+  if (!session) {
+    return null; // don't render until session exists
+  }
+  const { team_name, password, server_session } = session;
+
   // --- Load next image (authenticated) ---
   const loadNextImage = async () => {
     try {
       const res = await fetch("http://localhost:8000/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(    
-          {team_name: team_name,
-    password: password, 
-    session_id: "session_001",      // any random string
-    server_session: server_session}),
+        body: JSON.stringify({
+          team_name,
+          password,
+          session_id: "session_001",
+          server_session,
+        }),
       });
 
       if (!res.ok) {
@@ -39,6 +42,7 @@ export default function AIorNOT() {
       const data = await res.json();
       setCurrentImage({ url: data.image_url });
       setFeedback("");
+      setLightboxOpen(false); // close if a new image loads
     } catch (err) {
       console.error("Error fetching image:", err);
     }
@@ -53,11 +57,11 @@ export default function AIorNOT() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-              team_name: team_name,
-              password: password, 
-              session_id: "session_001",      // any random string
-              server_session: server_session,
-              user_guess: guessIsAI ? "ai" : "human",
+          team_name,
+          password,
+          session_id: "session_001",
+          server_session,
+          user_guess: guessIsAI ? "ai" : "human",
         }),
       });
 
@@ -91,6 +95,25 @@ export default function AIorNOT() {
   useEffect(() => {
     loadNextImage();
   }, []);
+
+  // --- Close lightbox on ESC ---
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxOpen(false);
+      if (e.key === "Enter" && lightboxOpen) setLightboxOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightboxOpen]);
+
+  // --- Prevent background scroll when lightbox open ---
+  useEffect(() => {
+    if (lightboxOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+  }, [lightboxOpen]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -127,12 +150,13 @@ export default function AIorNOT() {
           style={{ backgroundSize: "120%" }}
         >
           <div className="border-8 border-[#ff00ff] rounded-2xl overflow-hidden bg-[#1a0e30] shadow-[inset_0_0_30px_rgba(255,0,255,0.3)]">
-            <div className="w-[700px] h-[350px] flex items-center justify-center bg-gradient-to-br from-[#2a1548] to-[#1a0e30]">
+            <div className="w-[700px] h-[350px] flex items-center justify-center bg-gradient-to-br from-[#2a1548] to-[#1a0e30] relative">
               {currentImage ? (
                 <img
                   src={currentImage.url}
                   alt="Guess if AI or Human"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain cursor-zoom-in"
+                  onClick={() => setLightboxOpen(true)} // <= OPEN LIGHTBOX
                 />
               ) : (
                 <div className="text-[#FFD4EB] text-2xl">Loading...</div>
@@ -149,6 +173,7 @@ export default function AIorNOT() {
               )}
             </div>
           </div>
+                      <div>Tip:Click to enlarge</div>
         </div>
       </div>
 
@@ -192,6 +217,31 @@ export default function AIorNOT() {
             "radial-gradient(120% 70% at 50% 100%, black 55%, transparent 100%), linear-gradient(to top, black 65%, transparent 100%)",
         }}
       />
+
+      {/* === LIGHTBOX OVERLAY === */}
+      {lightboxOpen && currentImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-[1px] flex items-center justify-center p-4"
+          onClick={() => setLightboxOpen(false)} // click backdrop to close
+        >
+          <div className="relative max-w-[95vw] max-h-[90vh]">
+            <img
+              src={currentImage.url}
+              alt="Full view"
+              className="max-w-[95vw] max-h-[90vh] object-contain rounded-xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()} // don't close when clicking the image
+            />
+            <button
+              onClick={() => setLightboxOpen(false)}
+              className="absolute -top-3 -right-3 bg-white/90 text-black rounded-full w-10 h-10 flex items-center justify-center text-xl shadow-lg hover:scale-105 transition"
+              aria-label="Close"
+              title="Close (Esc)"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
