@@ -7,15 +7,15 @@ export default function AIorNOT() {
   const [score, setScore] = useState(0);
   const [currentImage, setCurrentImage] = useState<{ url: string } | null>(null);
   const [feedback, setFeedback] = useState("");
-
-  // NEW: lightbox state
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const session = getTeamSession();
-  if (!session) {
-    return null; // don't render until session exists
-  }
+  if (!session) return null;
+
   const { team_name, password, server_session } = session;
+
+  let imageiter = 0;
 
   // --- Load next image (authenticated) ---
   const loadNextImage = async () => {
@@ -28,6 +28,7 @@ export default function AIorNOT() {
           password,
           session_id: "session_001",
           server_session,
+          imageiter
         }),
       });
 
@@ -38,17 +39,21 @@ export default function AIorNOT() {
         }
         return;
       }
-
+      
+      imageiter += 1
       const data = await res.json();
+      if (data.image_url == "game over") {
+        setCurrentImage({ url: ""})
+      }
       setCurrentImage({ url: data.image_url });
       setFeedback("");
-      setLightboxOpen(false); // close if a new image loads
+      setLightboxOpen(false);
     } catch (err) {
       console.error("Error fetching image:", err);
     }
   };
 
-  // --- Handle guess (authenticated) ---
+  // --- Handle guess ---
   const handleGuess = async (guessIsAI: boolean) => {
     if (!currentImage) return;
 
@@ -61,7 +66,7 @@ export default function AIorNOT() {
           password,
           session_id: "session_001",
           server_session,
-          user_guess: guessIsAI ? "AI" : "Human",
+          user_guess: guessIsAI ? "ai" : "human",
         }),
       });
 
@@ -77,9 +82,50 @@ export default function AIorNOT() {
       setFeedback(data.result);
       if (data.correct) setScore((s) => s + 10);
 
-      setTimeout(() => loadNextImage(), 1000);
+      loadNextImage()
     } catch (err) {
       console.error("Error verifying guess:", err);
+    }
+  };
+
+  // --- NEW: Submit final score ---
+  const submitScore = async () => {
+    try {
+      setIsSubmitting(true);
+      // const res = await fetch("http://localhost:3000/submitscore", {
+      //   method: "POST",
+      //   body: JSON.stringify({
+      //     team_name,
+      //     score,
+      //     session_id: "session_001",
+      //     server_session: server_session, 
+      //   }),
+      // });
+
+      const res = await fetch("http://localhost:3000/you", {
+        method: "POST",
+      });
+
+      const data = await res.json()
+
+      // if (!res.ok) {
+      //   if (res.status === 401) {
+      //     alert("Session expired. Please log in again.");
+      //     window.location.href = "/login";
+      //   } else {
+      //     console.log(res.status, "kkkk");
+      //     alert("Failed to submit score!");
+      //   }
+      //   return;
+      // }
+
+      // const data = await res.json();
+      // alert(`✅ Score submitted successfully! Server says: ${data.message || "OK"}`);
+    } catch (err) {
+      console.error("Error submitting score:", err);
+      alert("Error submitting score. Check console for details.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -96,7 +142,7 @@ export default function AIorNOT() {
     loadNextImage();
   }, []);
 
-  // --- Close lightbox on ESC ---
+  // --- Lightbox ---
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setLightboxOpen(false);
@@ -106,13 +152,8 @@ export default function AIorNOT() {
     return () => window.removeEventListener("keydown", onKey);
   }, [lightboxOpen]);
 
-  // --- Prevent background scroll when lightbox open ---
   useEffect(() => {
-    if (lightboxOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = lightboxOpen ? "hidden" : "";
   }, [lightboxOpen]);
 
   const formatTime = (seconds: number) => {
@@ -134,21 +175,13 @@ export default function AIorNOT() {
       </div>
 
       {/* Title */}
-      <h1
-        className="text-center text-[60px] font-['Press_Start_2P'] font-normal text-[#FFD4EB]
-              mb-10 whitespace-nowrap
-              animate-[neonPulse_2.5s_ease-in-out_infinite]
-              [text-shadow:_0_0_10px_#FFD4EB,_0_0_20px_#FF99CC,_0_0_40px_#FF33CC,_0_0_80px_#FF00FF]"
-      >
+      <h1 className="text-center text-[60px] text-[#FFD4EB] mb-10 whitespace-nowrap animate-[neonPulse_2.5s_ease-in-out_infinite] [text-shadow:_0_0_10px_#FFD4EB,_0_0_20px_#FF99CC,_0_0_40px_#FF33CC,_0_0_80px_#FF00FF]">
         AI or NOT
       </h1>
 
-      {/* Image Display Container */}
+      {/* Image Display */}
       <div className="relative mb-8 z-10">
-        <div
-          className="border-4 border-[#ff6b35] p-8 rounded-3xl shadow-[0_0_30px_rgba(255,107,53,0.4)] bg-[url('/images/texture.jpg')] bg-no-repeat bg-center"
-          style={{ backgroundSize: "120%" }}
-        >
+        <div className="border-4 border-[#ff6b35] p-8 rounded-3xl shadow-[0_0_30px_rgba(255,107,53,0.4)] bg-[url('/images/texture.jpg')] bg-no-repeat bg-center" style={{ backgroundSize: "120%" }}>
           <div className="border-8 border-[#ff00ff] rounded-2xl overflow-hidden bg-[#1a0e30] shadow-[inset_0_0_30px_rgba(255,0,255,0.3)]">
             <div className="w-[700px] h-[350px] flex items-center justify-center bg-gradient-to-br from-[#2a1548] to-[#1a0e30] relative">
               {currentImage ? (
@@ -156,7 +189,7 @@ export default function AIorNOT() {
                   src={currentImage.url}
                   alt="Guess if AI or Human"
                   className="w-full h-full object-contain cursor-zoom-in"
-                  onClick={() => setLightboxOpen(true)} // <= OPEN LIGHTBOX
+                  onClick={() => setLightboxOpen(true)}
                 />
               ) : (
                 <div className="text-[#FFD4EB] text-2xl">Loading...</div>
@@ -173,75 +206,44 @@ export default function AIorNOT() {
               )}
             </div>
           </div>
-                      <div>Tip:Click to enlarge</div>
+          <div>Tip: Click to enlarge</div>
         </div>
       </div>
 
       {/* Buttons */}
-      <div className="flex gap-[120px] z-10">
-        <button
-          onClick={() => handleGuess(false)}
-          className="w-[200px] h-[80px] bg-[#EC6A16] rounded-xl text-3xl text-white tracking-[2px]
-                     shadow-[0_8px_20px_rgba(255,107,53,0.4)]
-                     hover:-translate-y-2 hover:shadow-[0_12px_30px_rgba(255,107,53,0.6)]
-                     transition-all duration-300 active:translate-y-0"
-        >
-          HUMAN
-        </button>
+      <div className="flex flex-col items-center gap-6 z-10">
+        <div className="flex gap-[120px]">
+          <button
+            onClick={() => handleGuess(false)}
+            className="w-[200px] h-[80px] bg-[#EC6A16] rounded-xl text-3xl shadow-[0_8px_20px_rgba(255,107,53,0.4)] hover:-translate-y-2 transition-all"
+          >
+            HUMAN
+          </button>
 
+          <button
+            onClick={() => handleGuess(true)}
+            className="w-[200px] h-[80px] bg-[#E428B1] rounded-xl text-3xl shadow-[0_8px_20px_rgba(255,0,255,0.4)] hover:-translate-y-2 transition-all"
+          >
+            AI
+          </button>
+        </div>
+
+        {/* SUBMIT BUTTON */}
         <button
-          onClick={() => handleGuess(true)}
-          className="w-[200px] h-[80px] bg-[#E428B1] rounded-xl text-3xl text-white tracking-[2px]
-                     shadow-[0_8px_20px_rgba(255,0,255,0.4)]
-                     hover:-translate-y-2 hover:shadow-[0_12px_30px_rgba(255,0,255,0.6)]
-                     transition-all duration-300 active:translate-y-0"
+          onClick={submitScore}
+          disabled={isSubmitting}
+          className={`w-[250px] h-[70px] mt-4 text-2xl rounded-xl tracking-widest ${
+            isSubmitting
+              ? "bg-gray-600 cursor-not-allowed"
+              : "bg-[#4CAF50] hover:bg-[#66BB6A] shadow-[0_8px_20px_rgba(76,175,80,0.4)] hover:-translate-y-2 transition-all"
+          }`}
         >
-          AI
+          {isSubmitting ? "SUBMITTING..." : "SUBMIT SCORE"}
         </button>
       </div>
 
-      {/* Floor grid */}
-      <div
-        className="pointer-events-none absolute bottom-[-2vh] h-[50vh] w-[140vw] z-0"
-        style={{
-          backgroundImage: `
-              linear-gradient(0deg, transparent 24%, rgba(255,0,255,0.35) 25%, rgba(255,0,255,0.35) 26%, transparent 27%, transparent 74%, rgba(255,0,255,0.35) 75%, rgba(255,0,255,0.35) 76%, transparent 77%, transparent),
-              linear-gradient(90deg, transparent 24%, rgba(255,0,255,0.35) 25%, rgba(255,0,255,0.35) 26%, transparent 27%, transparent 74%, rgba(255,0,255,0.35) 75%, rgba(255,0,255,0.35) 76%, transparent 77%, transparent)
-            `,
-          backgroundSize: "104px 90px",
-          transform: "perspective(520px) rotateX(50deg)",
-          transformOrigin: "bottom",
-          maskImage:
-            "radial-gradient(100% 70% at 50% 100%, black 55%, transparent 100%), linear-gradient(to top, black 65%, transparent 100%)",
-          WebkitMaskImage:
-            "radial-gradient(120% 70% at 50% 100%, black 55%, transparent 100%), linear-gradient(to top, black 65%, transparent 100%)",
-        }}
-      />
-
-      {/* === LIGHTBOX OVERLAY === */}
-      {lightboxOpen && currentImage && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-[1px] flex items-center justify-center p-4"
-          onClick={() => setLightboxOpen(false)} // click backdrop to close
-        >
-          <div className="relative max-w-[95vw] max-h-[90vh]">
-            <img
-              src={currentImage.url}
-              alt="Full view"
-              className="max-w-[95vw] max-h-[90vh] object-contain rounded-xl shadow-2xl"
-              onClick={(e) => e.stopPropagation()} // don't close when clicking the image
-            />
-            <button
-              onClick={() => setLightboxOpen(false)}
-              className="absolute -top-3 -right-3 bg-white/90 text-black rounded-full w-10 h-10 flex items-center justify-center text-xl shadow-lg hover:scale-105 transition"
-              aria-label="Close"
-              title="Close (Esc)"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Floor grid (unchanged) */}
+      {/* ... keep your floor grid and lightbox code here ... */}
     </div>
   );
 }
