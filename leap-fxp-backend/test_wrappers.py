@@ -6,7 +6,10 @@ import random
 import os
 import hashlib
 
-
+import base64, os
+from datetime import datetime
+from PIL import Image
+from io import BytesIO
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
@@ -23,6 +26,7 @@ app = FastAPI()
 
 origins = [
     "http://localhost:3000",         # Next.js local dev
+    "http://localhost:8000",
     "http://127.0.0.1:3000",         # Sometimes needed too
     "http://127.0.0.1:8000",     # Replace with your machine IP if used over LAN
 ]
@@ -59,8 +63,11 @@ teams = {
     "team_zenith": hashlib.sha256("peak789".encode()).hexdigest(),
 }
 
-# Store scores securely
-scores: Dict[str, int] = {}
+scores = {
+    "test" : 0,
+    "team_orion": 0,
+    "team_zenith": 0
+}
 
 
 # --- Models ---
@@ -101,18 +108,6 @@ def login(req: LoginRequest):
     }
 
 
-@app.post("/submit_score")
-def submit_score(data: ScoreSubmission):
-    """Submit final score (requires authentication)"""
-    hashed_pw = hashlib.sha256(data.password.encode()).hexdigest()
-    
-    if data.team_name not in teams or teams[data.team_name] != hashed_pw:
-        raise HTTPException(status_code=401, detail="Authentication failed")
-
-    scores[data.team_name] = data.score
-    return {"status": "success", "message": "Score submitted successfully"}
-
-
 @app.get("/scores")
 def get_scores():
     """Admin-only endpoint (optional)"""
@@ -122,7 +117,7 @@ def get_scores():
 games_status = {
     "ai_or_not": True,
     "interro_room": True,
-    "story_hunt": False,
+    "story_hunt": True,
     "pixel_fog": True,
 }
 
@@ -247,7 +242,6 @@ async def ask_oracle(message: AskRequest):
     """
     print(f"Received prompt from {message.team_name}: {message.user_input}")
 
-    print(message, "WHATTTT")
 
     # --- Step 1: Check if server session is valid ---
     if message.server_session != SERVER_SESSION_KEY:
@@ -298,6 +292,9 @@ IMAGES = [
     {"url": "https://picsum.photos/600/400?random=4", "type": "ai"},
 ]
 
+IMAGE_ITER = 0
+IMAGE_MAX = len(IMAGES)
+
 current_image = {"type": None, "url": None}
 
 # --- Request Models ---
@@ -306,6 +303,7 @@ class AuthRequest(BaseModel):
     password: str
     session_id: str
     server_session: str
+    imageiter: int
 
 class GuessRequest(AuthRequest):
     user_guess: str
@@ -322,10 +320,15 @@ def authenticate(team_name: str, password: str, server_session: str):
 def get_image(request: AuthRequest):
     """Send a random image (only if authenticated)"""
     authenticate(request.team_name, request.password, request.server_session)
+    if request.imageiter == IMAGE_MAX:
+        print(request.team_name,  " : ", score[request.team_name])
+        return {"image_url": "game over"}
 
     global current_image
-    current_image = random.choice(IMAGES)
+    current_image = IMAGES[request.imageiter]
     return {"image_url": current_image["url"]}
+
+
 
 
 @app.post("/verify")
@@ -337,8 +340,187 @@ def verify_guess(request: GuessRequest):
         raise HTTPException(status_code=400, detail="No image has been sent yet.")
 
     correct = request.user_guess.lower() == current_image["type"]
+    if correct:
+        scores[team_name] += 1
     print(f"CORRECT by team {team_name}" if correct else f"WRONG by team {team_name}")
     return {
         "result": "✓ CORRECT!" if correct else "✗ WRONG!",
         "correct": correct
     }
+import re
+UPLOAD_FOLDER = "uploads/"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+@app.post("/pixelfog/image")
+def get_image(data: dict):
+    if data.get("server_session") != SERVER_SESSION_KEY:
+        
+        raise HTTPException(401, "Unauthorized")
+    files = [f for f in os.listdir(UPLOAD_FOLDER)]
+    if not files:
+        raise HTTPException(status_code=404, detail="No images found.")
+
+    # Extract numbers from filenames like "1.jpg"
+    def extract_num(name: str):
+        match = re.match(r"(\d+)", name)
+        return int(match.group(1)) if match else -1
+
+    # Sort numerically and get the highest one
+    files.sort(key=extract_num)
+    latest_file = files[data.get("imageiter")]
+    latest_path = os.path.join(UPLOAD_FOLDER, latest_file)
+
+    with open(latest_path, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode("utf-8")
+
+
+    return {
+        "image_data": f"data:image/jpeg;base64,{encoded}",
+        "image_iter": data.get("imageiter")
+    }
+
+from classifier import predict
+
+@app.post("/beatleap/submit")
+def submit_image(data: dict):
+    if data.get("serversession") != SERVER_SESSION_KEY:
+        raise HTTPException(401, "Unauthorized")
+
+
+    image_data = data["image_data"]  # base64 string
+    image_number = data["imageiter"]
+    # TODO: save or process the submitted image
+
+        # Step 1 — Decode the image
+    header, encoded = data["image_data"].split(",", 1)
+    image_bytes = base64.b64decode(encoded)
+    image = Image.open(BytesIO(image_bytes))
+
+    over = predict(image, image_number)
+    if over:
+        print(f"OVER!! pixels changed: {data["changed"]} by team {data["team_name"]}")
+        return {"message": "You passed this test case!", "image_iter": 1}
+    else:
+        return {"message": "You have not passed this case. Try Again!", "image_iter":0}
+    
+
+
+
+# story hunt
+
+from threading import Lock
+
+from typing import List
+from fastapi import UploadFile, File, Form
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+import os, re, hashlib, json
+
+
+_UPLOAD_ROOT = Path("uploads")
+_UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+
+# Expose uploads at /uploads (safe if hot-reloading)
+try:
+    app.mount("/uploads", StaticFiles(directory=str(_UPLOAD_ROOT), html=False), name="uploads")
+except Exception:
+    pass
+
+# ---- helpers (scoped to this block) ----
+_SAFE = re.compile(r"[^a-zA-Z0-9_]+")
+_IDX_PAT = re.compile(r"image(\d+)", re.IGNORECASE)
+
+def _sanitize_team(name: str) -> str:
+    return _SAFE.sub("", name.replace(" ", "").lower())
+
+def _team_dir(team_name: str) -> Path:
+    p = _UPLOAD_ROOT / _sanitize_team(team_name)
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+def _next_index_for(team_name: str) -> int:
+    """Look at existing files like <team>imageK.* and return next K."""
+    td = _team_dir(team_name)
+    prefix = _sanitize_team(team_name)
+    idxs = []
+    for f in td.glob(f"{prefix}image*.*"):
+        m = _IDX_PAT.search(f.name)
+        if m:
+            try:
+                idxs.append(int(m.group(1)))
+            except ValueError:
+                pass
+    return (max(idxs) + 1) if idxs else 1
+
+def _ext_of(name: str) -> str:
+    ext = os.path.splitext(name)[1].lower()
+    return ext if ext else ".jpg"
+
+def _auth_upload(team_name: str, password: str, server_session: str):
+    """Minimal auth to match your current scheme (no imports modified above)."""
+    if server_session != SERVER_SESSION_KEY:
+        raise HTTPException(status_code=401, detail="Invalid session key.")
+    if team_name not in teams:
+        raise HTTPException(status_code=401, detail="Invalid team name.")
+    if teams[team_name] != hashlib.sha256(password.encode()).hexdigest():
+        raise HTTPException(status_code=401, detail="Invalid password.")
+
+# ---- endpoints ----
+_MAX_FILES = 10
+
+@app.post("/images/upload")
+async def images_upload(
+    team_name: str = Form(...),
+    password: str = Form(...),
+    server_session: str = Form(...),
+    files: List[UploadFile] = File(...),
+):
+    """
+    Accepts up to 10 images and saves them as:
+      uploads/<team_sanitized>/<team_sanitized>image1.jpg, image2.png, ...
+    Returns {status, count, items:[{filename,url}, ...]}.
+    """
+    _auth_upload(team_name, password, server_session)
+
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided.")
+    if len(files) > _MAX_FILES:
+        raise HTTPException(status_code=400, detail=f"Max {_MAX_FILES} images allowed per upload.")
+
+    td = _team_dir(team_name)
+    prefix = _sanitize_team(team_name)
+    start_idx = _next_index_for(team_name)
+
+    saved = []
+    for i, upl in enumerate(files, start=0):
+        if not (upl.content_type or "").startswith("image/"):
+            raise HTTPException(status_code=400, detail=f"Only images allowed. Got {upl.content_type} for {upl.filename}")
+
+        final_name = f"{prefix}image{start_idx + i}{_ext_of(upl.filename)}"
+        dest = td / final_name
+
+        # stream to disk (chunked)
+        with dest.open("wb") as out:
+            while True:
+                chunk = await upl.read(1024 * 1024)
+                if not chunk:
+                    break
+                out.write(chunk)
+
+        saved.append({
+            "filename": final_name,
+            "url": f"/uploads/{prefix}/{final_name}",
+        })
+
+    return {"status": "ok", "count": len(saved), "items": saved}
+
+@app.get("/images/list")
+def images_list(team_name: str, password: str, server_session: str):
+    """List previously uploaded images for a team (for debugging)."""
+    _auth_upload(team_name, password, server_session)
+    td = _team_dir(team_name)
+    prefix = _sanitize_team(team_name)
+    items = []
+    for f in sorted(td.iterdir()):
+        if f.is_file():
+            items.append({"filename": f.name, "url": f"/uploads/{prefix}/{f.name}"})
+    return {"images": items}
