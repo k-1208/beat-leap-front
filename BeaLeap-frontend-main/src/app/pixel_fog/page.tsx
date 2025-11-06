@@ -1,9 +1,14 @@
 "use client";
 import dynamic from "next/dynamic";
+import { useState, useEffect, useCallback } from "react";
 
+// Dynamically import the PixelEditorApp, assuming it has a prop to set the initial image data
+// and a way to retrieve the final image data.
 const PixelEditorApp = dynamic(() => import("@/components/pixel-editor/App"), { ssr: false });
 
 export default function PixelFogPage() {
+
+
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#0C0614] text-white font-['Press_Start_2P']">
       {/* Logo */}
@@ -20,13 +25,14 @@ export default function PixelFogPage() {
           Pixel Fog
         </h1>
 
-        {/* Editor */}
+        {/* Editor & Loading State */}
         <div className="mt-4">
-          <PixelEditorApp />
+            <PixelEditorApp
+            />
         </div>
       </div>
 
-      {/* Floor grid */}
+      {/* Floor grid (remains the same) */}
       <div
         className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 h-[50vh] w-[140vw] z-0"
         style={{

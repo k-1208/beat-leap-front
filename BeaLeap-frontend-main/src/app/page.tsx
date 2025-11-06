@@ -123,7 +123,7 @@ export default function BeatLeap() {
           status.interro_room
         )}
         {renderCard(
-          "#",
+          "/story_hunt",
           "/images/image 219.png",
           "STORY HUNT",
           status.story_hunt

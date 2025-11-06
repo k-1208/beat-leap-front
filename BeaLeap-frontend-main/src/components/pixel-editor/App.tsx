@@ -3,11 +3,14 @@
 import React, { useState, useCallback, useRef } from "react";
 import { GRID_SIZE, COLORS, ERASER_COLOR } from "@/lib/pixel-editor/constants";
 import type { PixelGridType } from "@/lib/pixel-editor/types";
+import { useEffect } from "react";
 
 import Header from "./Header";
 import Stats from "./Stats";
 import ColorPalette from "./ColorPalette";
 import PixelGrid from "./PixelGrid";
+import { getTeamSession } from "@/lib/session"; // adjust import path
+
 
 
 const createEmptyGrid = (): PixelGridType => {
@@ -43,11 +46,84 @@ const App: React.FC = () => {
   const [isImageUploaded, setIsImageUploaded] = useState(false);
   const [originalImageGrid, setOriginalImageGrid] = useState<PixelGridType | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [statusMessage, setStatusMessage] = useState(null);
 
   // State for the custom password prompt
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
+
+  const session = getTeamSession();
+  if (!session) return null;
+  
+  const { team_name, password, server_session } = session;
+  
+  const imageiter = useRef(0);
+  
+  const fetchLatestImage = async () => {
+      console.log(imageiter.current, "IMAGE ITer BEHECHOD")
+      try {
+        const res = await fetch("http://127.0.0.1:8000/pixelfog/image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            team_name,
+            password,
+            session_id: "session_001",
+            server_session,
+            imageiter: imageiter.current
+          }),
+        });
+        if (!res.ok) {
+          console.warn("No latest image found yet.");
+          return;
+        }
+
+
+        const data = await res.json();
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = GRID_SIZE;
+          canvas.height = GRID_SIZE;
+          const ctx = canvas.getContext("2d", { willReadFrequently: true });
+          if (!ctx) return;
+
+          ctx.drawImage(img, 0, 0, GRID_SIZE, GRID_SIZE);
+          const imageData = ctx.getImageData(0, 0, GRID_SIZE, GRID_SIZE);
+          const pixels = imageData.data;
+          const newGrid: PixelGridType = createEmptyGrid();
+
+          for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+              const i = (y * GRID_SIZE + x) * 4;
+              const r = pixels[i];
+              const g = pixels[i + 1];
+              const b = pixels[i + 2];
+              const a = pixels[i + 3];
+              if (a < 128 || (r > 250 && g > 250 && b > 250)) {
+                newGrid[y][x] = null;
+              } else {
+                newGrid[y][x] = rgbToHex(r, g, b);
+              }
+            }
+          }
+          setGrid(newGrid);
+          setOriginalImageGrid(newGrid);
+          setIsImageUploaded(true);
+          setPixelsEdited(0);
+        };
+        img.src = data.image_data;
+        imageiter.current = data.image_iter;
+        console.log("post loading, imageiter is now", data.image_iter)
+      } catch (err) {
+        console.error("Error loading latest image:", err);
+      }
+    };
+
+  useEffect(() => {
+     fetchLatestImage();
+}, []);
 
 
   const handlePixelChange = useCallback((row: number, col: number) => {
@@ -172,39 +248,101 @@ const App: React.FC = () => {
     setPasswordError('');
   };
 
-  const handleDownload = () => {
-    const downloadSize = 1000;
-    const scale = downloadSize / GRID_SIZE;
-    const canvas = document.createElement('canvas');
-    canvas.width = downloadSize;
-    canvas.height = downloadSize;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  const handleDownload = async () => {
+  const downloadSize = 1000;
+  const scale = downloadSize / GRID_SIZE;
+  const canvas = document.createElement("canvas");
+  canvas.width = downloadSize;
+  canvas.height = downloadSize;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
 
-    // Disable image smoothing to keep the pixels sharp
-    ctx.imageSmoothingEnabled = false;
+  // Disable image smoothing to keep the pixels sharp
+  ctx.imageSmoothingEnabled = false;
 
-    // JPG doesn't support transparency, so set a background color
-    ctx.fillStyle = '#21142F';
-    ctx.fillRect(0, 0, downloadSize, downloadSize);
+  // JPG doesn't support transparency, so set a background color
+  ctx.fillStyle = "#21142F";
+  ctx.fillRect(0, 0, downloadSize, downloadSize);
 
-    grid.forEach((row, y) => {
-        row.forEach((color, x) => {
-            if (color) {
-                ctx.fillStyle = color;
-                ctx.fillRect(x * scale, y * scale, scale, scale);
-            }
-        });
+  // Draw each pixel
+  grid.forEach((row, y) => {
+    row.forEach((color, x) => {
+      if (color) {
+        ctx.fillStyle = color;
+        ctx.fillRect(x * scale, y * scale, scale, scale);
+      }
+    });
+  });
+
+
+  // Get the image as a Base64-encoded JPEG
+  const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+
+
+
+  // --- 2️⃣ Upload the same image to backend ---
+  try {
+    const session = getTeamSession();
+
+
+    if (!session) {
+      return;
+    }
+
+
+    const { team_name, password, server_session } = session;
+
+    console.log("sending the following image iter", imageiter.current)
+    const response = await fetch("http://127.0.0.1:8000/beatleap/submit", {
+      method: "POST",
+      headers: {
+    "Content-Type": "application/json",},
+
+      body: JSON.stringify({
+        image_data: dataUrl, // send full base64 image
+        team_name,
+        serversession: server_session,
+        imageiter: imageiter.current,
+        changed: pixelsEdited
+      }),
     });
 
-    const link = document.createElement('a');
-    link.download = 'pixel-art.jpg';
-    link.href = canvas.toDataURL('image/jpeg', 0.9);
-    link.click();
-  };
+
+    if (!response.ok) {
+      console.error("Failed to submit image:", await response.text());
+      alert("Upload failed. Please try again.");
+    } else {
+      const result = await response.json();
+      console.log(result["message"]);
+      imageiter.current += result["image_iter"]
+
+
+      fetchLatestImage();
+      setStatusMessage(result["message"]); // show message on screen
+      setTimeout(() => setStatusMessage(null), 4000); // hide after 4 seconds 
+
+      // ✅ redirect after 3 uploads
+      if (imageiter.current >= 3) {
+        window.location.href = "/"; // ✅ works fine
+      }
+
+    }
+  } catch (err) {
+    console.error("Error submitting image:", err);
+    alert("Network error while submitting image.");
+  }
+
+
+
+};
 
   return (
     <div className="w-full text-white flex flex-col items-center p-4 gap-6 ...">
+          {statusMessage && (
+      <div className="fixed top-6 left-1/2 transform -translate-x-1/2 bg-[#11AC7B] text-white px-6 py-3 rounded-lg shadow-lg text-lg font-semibold z-50 animate-fadeIn">
+        {statusMessage}
+      </div>
+        )}
       <main className="flex flex-col items-center gap-6 w-full">
 
         <div className="flex flex-col md:flex-row gap-8 items-center md:items-start ">
@@ -224,26 +362,14 @@ const App: React.FC = () => {
               accept="image/*"
               className="hidden"
             />
-            <button
-              onClick={handleUploadClick}
-              className="w-full bg-[#9839B1] hover:bg-opacity-80 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-lg"
-              aria-label="Upload an image"
-            >
-              <UploadIcon className="w-6 h-6" />
-              <span>Upload Image</span>
-            </button>
+            
             <button
               onClick={handleDownload}
               className="w-full bg-[#11AC7B] hover:bg-opacity-80 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 text-lg"
             >
-              Download JPG
+              SUBMIT
             </button>
-            <button
-              onClick={resetGrid}
-              className="w-full bg-[#EC5E46] hover:bg-opacity-80 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 text-lg"
-            >
-              Reset Canvas
-            </button>
+
           </div>
         </div>
       </main>
