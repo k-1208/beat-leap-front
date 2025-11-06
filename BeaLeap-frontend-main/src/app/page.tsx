@@ -25,7 +25,7 @@ export default function BeatLeap() {
 
       try {
         console.log(`sending ${session}`)
-        const res = await fetch("http://127.0.0.1:8000/games/status", {
+        const res = await fetch("/backend/games/status", {
           headers: {
             "Content-Type": "application/json",
             "server-session": session,  // ✅ must match backend
@@ -123,7 +123,7 @@ export default function BeatLeap() {
           status.interro_room
         )}
         {renderCard(
-          "#",
+          "/story_hunt",
           "/images/image 219.png",
           "STORY HUNT",
           status.story_hunt

@@ -20,7 +20,7 @@ export default function AIorNOT() {
   // --- Load next image (authenticated) ---
   const loadNextImage = async () => {
     try {
-      const res = await fetch("http://localhost:8000/image", {
+      const res = await fetch("/backend/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -53,7 +53,7 @@ export default function AIorNOT() {
     if (!currentImage) return;
 
     try {
-      const res = await fetch("http://localhost:8000/verify", {
+      const res = await fetch("/backend/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -61,7 +61,7 @@ export default function AIorNOT() {
           password,
           session_id: "session_001",
           server_session,
-          user_guess: guessIsAI ? "ai" : "human",
+          user_guess: guessIsAI ? "AI" : "Human",
         }),
       });
 

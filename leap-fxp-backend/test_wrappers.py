@@ -5,7 +5,13 @@ from typing import Dict
 import random
 import os
 import hashlib
+from threading import Lock
 
+from typing import List
+from fastapi import UploadFile, File, Form
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+import os, re, hashlib, json
 
 from google import genai
 from google.genai import types
@@ -24,7 +30,7 @@ app = FastAPI()
 origins = [
     "http://localhost:3000",         # Next.js local dev
     "http://127.0.0.1:3000",         # Sometimes needed too
-    "http://127.0.0.1:8000",     # Replace with your machine IP if used over LAN
+    "/backend:8000",     # Replace with your machine IP if used over LAN
 ]
 
 
@@ -122,7 +128,7 @@ def get_scores():
 games_status = {
     "ai_or_not": True,
     "interro_room": True,
-    "story_hunt": False,
+    "story_hunt": True,
     "pixel_fog": True,
 }
 
@@ -292,13 +298,16 @@ async def root():
 
 
 IMAGES = [
-    {"url": "https://picsum.photos/600/400?random=1", "type": "human"},
-    {"url": "https://picsum.photos/600/400?random=2", "type": "ai"},
-    {"url": "https://picsum.photos/600/400?random=3", "type": "human"},
-    {"url": "https://picsum.photos/600/400?random=4", "type": "ai"},
+    {"url": "https://i.postimg.cc/fLbyCNMM/img2.jpg", "type": "AI"},
+    {"url": "https://i.postimg.cc/fRZ9d1Sk/10085131083-86d8878012-k.jpg", "type": "Human"},
+    {"url": "https://i.postimg.cc/m279tTk1/271ffd11-8742-40e5-ad92-e002b782e9b9.jpg", "type": "AI"},
+    {"url": "https://i.postimg.cc/pLxFj35D/723b1730-eb7a-4394-bb8d-ca9670d58751.png", "type": "Human"},
+    {"url": "https://i.postimg.cc/rwcr47R0/pexels-pixabay-315191.jpg", "type": "Human"},
+    {"url": "https://i.postimg.cc/R0YhgYh1/kyle-bushnell-pw-Ly-WOAUk-Zs-unsplash.jpg", "type": "Human"},
 ]
 
 current_image = {"type": None, "url": None}
+
 
 # --- Request Models ---
 class AuthRequest(BaseModel):
@@ -342,3 +351,112 @@ def verify_guess(request: GuessRequest):
         "result": "✓ CORRECT!" if correct else "✗ WRONG!",
         "correct": correct
     }
+
+_UPLOAD_ROOT = Path("uploads")
+_UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+
+# Expose uploads at /uploads (safe if hot-reloading)
+try:
+    app.mount("/uploads", StaticFiles(directory=str(_UPLOAD_ROOT), html=False), name="uploads")
+except Exception:
+    pass
+
+# ---- helpers (scoped to this block) ----
+_SAFE = re.compile(r"[^a-zA-Z0-9_]+")
+_IDX_PAT = re.compile(r"image(\d+)", re.IGNORECASE)
+
+def _sanitize_team(name: str) -> str:
+    return _SAFE.sub("", name.replace(" ", "").lower())
+
+def _team_dir(team_name: str) -> Path:
+    p = _UPLOAD_ROOT / _sanitize_team(team_name)
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+def _next_index_for(team_name: str) -> int:
+    """Look at existing files like <team>imageK.* and return next K."""
+    td = _team_dir(team_name)
+    prefix = _sanitize_team(team_name)
+    idxs = []
+    for f in td.glob(f"{prefix}image*.*"):
+        m = _IDX_PAT.search(f.name)
+        if m:
+            try:
+                idxs.append(int(m.group(1)))
+            except ValueError:
+                pass
+    return (max(idxs) + 1) if idxs else 1
+
+def _ext_of(name: str) -> str:
+    ext = os.path.splitext(name)[1].lower()
+    return ext if ext else ".jpg"
+
+def _auth_upload(team_name: str, password: str, server_session: str):
+    """Minimal auth to match your current scheme (no imports modified above)."""
+    if server_session != SERVER_SESSION_KEY:
+        raise HTTPException(status_code=401, detail="Invalid session key.")
+    if team_name not in teams:
+        raise HTTPException(status_code=401, detail="Invalid team name.")
+    if teams[team_name] != hashlib.sha256(password.encode()).hexdigest():
+        raise HTTPException(status_code=401, detail="Invalid password.")
+
+# ---- endpoints ----
+_MAX_FILES = 10
+
+@app.post("/images/upload")
+async def images_upload(
+    team_name: str = Form(...),
+    password: str = Form(...),
+    server_session: str = Form(...),
+    files: List[UploadFile] = File(...),
+):
+    """
+    Accepts up to 10 images and saves them as:
+      uploads/<team_sanitized>/<team_sanitized>image1.jpg, image2.png, ...
+    Returns {status, count, items:[{filename,url}, ...]}.
+    """
+    _auth_upload(team_name, password, server_session)
+
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided.")
+    if len(files) > _MAX_FILES:
+        raise HTTPException(status_code=400, detail=f"Max {_MAX_FILES} images allowed per upload.")
+
+    td = _team_dir(team_name)
+    prefix = _sanitize_team(team_name)
+    start_idx = _next_index_for(team_name)
+
+    saved = []
+    for i, upl in enumerate(files, start=0):
+        if not (upl.content_type or "").startswith("image/"):
+            raise HTTPException(status_code=400, detail=f"Only images allowed. Got {upl.content_type} for {upl.filename}")
+
+        final_name = f"{prefix}image{start_idx + i}{_ext_of(upl.filename)}"
+        dest = td / final_name
+
+        # stream to disk (chunked)
+        with dest.open("wb") as out:
+            while True:
+                chunk = await upl.read(1024 * 1024)
+                if not chunk:
+                    break
+                out.write(chunk)
+
+        saved.append({
+            "filename": final_name,
+            "url": f"/uploads/{prefix}/{final_name}",
+        })
+
+    return {"status": "ok", "count": len(saved), "items": saved}
+
+@app.get("/images/list")
+def images_list(team_name: str, password: str, server_session: str):
+    """List previously uploaded images for a team (for debugging)."""
+    _auth_upload(team_name, password, server_session)
+    td = _team_dir(team_name)
+    prefix = _sanitize_team(team_name)
+    items = []
+    for f in sorted(td.iterdir()):
+        if f.is_file():
+            items.append({"filename": f.name, "url": f"/uploads/{prefix}/{f.name}"})
+    return {"images": items}

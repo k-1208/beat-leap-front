@@ -1,21 +1,27 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Proxy all backend requests to FastAPI (running locally)
+  async rewrites() {
+    return [
+      // Your API endpoints (login, ask, image, verify, images/upload, etc.)
+      { source: "/backend/:path*", destination: "http://127.0.0.1:8000/:path*" },
+
+      // Static uploads served by FastAPI's StaticFiles
+      { source: "/uploads/:path*", destination: "http://127.0.0.1:8000/uploads/:path*" },
+    ];
+  },
+
+  // (Optional) CORS headers. With the proxy, you usually don't need these,
+  // but leaving them on all paths won't hurt dev.
   async headers() {
     return [
       {
-        // matching all API routes
-        source: "/api/:path*",
+        source: "/:path*",
         headers: [
           { key: "Access-Control-Allow-Credentials", value: "true" },
-          {
-            key: "Access-Control-Allow-Origin",
-            value: "*",
-          }, // replace this with specific origin in production
-          {
-            key: "Access-Control-Allow-Methods",
-            value: "GET,DELETE,PATCH,POST,PUT",
-          },
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET,DELETE,PATCH,POST,PUT,OPTIONS" },
           {
             key: "Access-Control-Allow-Headers",
             value:
@@ -25,6 +31,7 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
   images: {
     domains: ["replicate.delivery"],
   },
