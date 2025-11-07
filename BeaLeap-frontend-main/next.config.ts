@@ -5,10 +5,10 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       // Your API endpoints (login, ask, image, verify, images/upload, etc.)
-      { source: "/backend/:path*", destination: "http://127.0.0.1:8000/:path*" },
+      { source: "/backend/:path*", destination: "http://18.232.35.191:8002/:path*" },
 
       // Static uploads served by FastAPI's StaticFiles
-      { source: "/uploads/:path*", destination: "http://127.0.0.1:8000/uploads/:path*" },
+      { source: "/uploads/:path*", destination: "http://18.232.35.191:8002/uploads/:path*" },
     ];
   },
 

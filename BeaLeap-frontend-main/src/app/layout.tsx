@@ -12,6 +12,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "GenAI Workshop",
   description: "GenAI Workshop",
+  icons: {
+    icon: "/vercel.svg",
+  },
 };
 
 export default function RootLayout({
