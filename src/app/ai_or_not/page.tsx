@@ -101,7 +101,7 @@ export default function AIorNOT() {
     const { team_name, server_session } = session;
     
     try {
-      await fetch("http://localhost:3000/submitscore", {
+      await fetch("https://api.beatleap.leapai.club/submitscore", {
         method: "POST",
         body: JSON.stringify({
           team_name,
