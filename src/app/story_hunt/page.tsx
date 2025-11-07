@@ -94,7 +94,7 @@ export default function StoryHuntUploader() {
   if (!session) return null;
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-[#0C0614] text-white font-['Press_Start_2P'] flex flex-col items-center justify-center">
+    <div className="fixed inset-0 bg-[#0C0614] text-white font-['Press_Start_2P'] flex flex-col items-center justify-center">
       {/* Logo */}
       <div className="absolute top-8 left-10 z-10">
         {/* eslint-disable-next-line @next/next/no-img-element */}
