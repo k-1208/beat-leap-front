@@ -94,7 +94,7 @@ export default function LoginPage() {
 
       {/* Title */}
       <h1 className="text-[64px] text-[#FFD4EB] mb-10 animate-[neonPulse_2.5s_ease-in-out_infinite] [text-shadow:_0_0_10px_#FF99CC,_0_0_20px_#FF33CC,_0_0_40px_#FF00FF]">
-        TEAM LOGIN
+        TEAM
       </h1>
 
       {/* Login Form */}
