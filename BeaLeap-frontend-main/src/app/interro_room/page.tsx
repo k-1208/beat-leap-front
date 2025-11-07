@@ -258,7 +258,7 @@
 
 "use client";
 import { getTeamSession } from "@/lib/session";
-import React, { useMemo, useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 
 
 
@@ -311,10 +311,10 @@ export default function InterrogationRoom() {
       setScore((s) => s + 1);
       setReply(data.response || "No reply received from Oracle.");
       setPrompt("");
-    } catch (e: any) {
-      if (e?.name === "AbortError") return;
+    } catch (e) {
+      if ((e as Error)?.name === "AbortError") return;
       console.error(e);
-      setReply(e?.message || "The Oracle is silent… try again.");
+      setReply((e as Error)?.message || "The Oracle is silent… try again.");
     } finally {
       setLoading(false);
     }
@@ -329,6 +329,7 @@ export default function InterrogationRoom() {
 
       {/* Logo */}
       <div className="absolute top-8 left-10 z-10">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/images/leap_purple 1.png" alt="LEAP Experience" className="w-24" />
       </div>
 

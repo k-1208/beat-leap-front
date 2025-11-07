@@ -1,6 +1,5 @@
 "use client";
 import dynamic from "next/dynamic";
-import { useState, useEffect, useCallback } from "react";
 
 // Dynamically import the PixelEditorApp, assuming it has a prop to set the initial image data
 // and a way to retrieve the final image data.
@@ -12,6 +11,7 @@ export default function PixelFogPage() {
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#0C0614] text-white font-['Press_Start_2P']">
       {/* Logo */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/images/leap_purple 1.png"
         alt="LEAP Experience"

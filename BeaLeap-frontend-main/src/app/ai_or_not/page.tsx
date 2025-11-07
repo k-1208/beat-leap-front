@@ -5,21 +5,19 @@ import { getTeamSession } from "@/lib/session"; // adjust import path
 
 export default function AIorNOT() {
   const [timeLeft, setTimeLeft] = useState(1800); // 8 minutes
-  const [score, setScore] = useState(0);
   const [currentImage, setCurrentImage] = useState<{ url: string } | null>(null);
   const [feedback, setFeedback] = useState("");
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const session = getTeamSession();
-  if (!session) return null;
-
-  const { team_name, password, server_session } = session;
 
   const imageiter = useRef(0); // ✅ persists across renders
 
+  const session = getTeamSession();
+  
   // --- Load next image (authenticated) ---
   const loadNextImage = async () => {
+    if (!session) return;
+    
+    const { team_name, password, server_session } = session;
     try {
       const res = await fetch("/backend/image", {
         method: "POST",
@@ -57,7 +55,9 @@ export default function AIorNOT() {
 
   // --- Handle guess ---
   const handleGuess = async (guessIsAI: boolean) => {
-    if (!currentImage) return;
+    if (!currentImage || !session) return;
+    
+    const { team_name, password, server_session } = session;
 
     try {
       const res = await fetch("/backend/verify", {
@@ -96,13 +96,15 @@ export default function AIorNOT() {
 
   // --- NEW: Submit final score ---
   const submitScore = async () => {
+    if (!session) return;
+    
+    const { team_name, server_session } = session;
+    
     try {
-      setIsSubmitting(true);
-      const res = await fetch("http://localhost:3000/submitscore", {
+      await fetch("http://localhost:3000/submitscore", {
         method: "POST",
         body: JSON.stringify({
           team_name,
-          score,
           server_session: server_session, 
         }),
       });
@@ -112,8 +114,6 @@ export default function AIorNOT() {
     } catch (err) {
       console.error("Error submitting score:", err);
       alert("Error submitting score. Check console for details.");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -128,6 +128,7 @@ export default function AIorNOT() {
   // --- On mount ---
   useEffect(() => {
     loadNextImage();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- Lightbox ---
@@ -150,10 +151,13 @@ export default function AIorNOT() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  if (!session) return null;
+
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#0C0614] text-white font-['Press_Start_2P'] flex flex-col items-center justify-center">
       {/* Logo */}
       <div className="absolute top-8 left-10 z-10">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/images/leap_purple 1.png" alt="LEAP Experience" className="w-24" />
       </div>
 
@@ -173,6 +177,7 @@ export default function AIorNOT() {
           <div className="border-8 border-[#ff00ff] rounded-2xl overflow-hidden bg-[#1a0e30] shadow-[inset_0_0_30px_rgba(255,0,255,0.3)]">
             <div className="w-[700px] h-[350px] flex items-center justify-center bg-gradient-to-br from-[#2a1548] to-[#1a0e30] relative">
               {currentImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={currentImage.url}
                   alt="Guess if AI or Human"

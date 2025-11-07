@@ -10,20 +10,19 @@ const MAX_WORDS = 200;
 type LabeledFile = { file: File; url: string };
 
 export default function StoryHuntUploader() {
-  const session = getTeamSession();
-  if (!session) return null;
-  const { team_name, password, server_session } = session;
-
   const [items, setItems] = useState<LabeledFile[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [story, setStory] = useState<string>("");
 
+  const hiddenInputRef = useRef<HTMLInputElement | null>(null);
+
+  const session = getTeamSession();
+  
   const wordCount = useMemo(
     () => story.trim().split(/\s+/).filter(Boolean).length,
     [story]
   );
-  const hiddenInputRef = useRef<HTMLInputElement | null>(null);
 
   const countText = `${items.length} / ${MAX_FILES} selected`;
 
@@ -56,6 +55,10 @@ export default function StoryHuntUploader() {
 
   async function onSubmit() {
     if (!items.length && !story.trim()) return;
+    if (!session) return;
+    
+    const { team_name, password, server_session } = session;
+    
     setBusy(true); setMsg("Uploading...");
 
     const fd = new FormData();
@@ -83,15 +86,18 @@ export default function StoryHuntUploader() {
         setStory("");
       }
       setMsg("Upload complete!");
-    } catch (e: any) {
-      setMsg(`Upload failed: ${e.message}`);
+    } catch (e) {
+      setMsg(`Upload failed: ${(e as Error).message}`);
     } finally { setBusy(false); }
   }
+
+  if (!session) return null;
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#0C0614] text-white font-['Press_Start_2P'] flex flex-col items-center justify-center">
       {/* Logo */}
       <div className="absolute top-8 left-10 z-10">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/images/leap_purple 1.png" alt="LEAP Experience" className="w-24" />
       </div>
 
@@ -120,6 +126,7 @@ export default function StoryHuntUploader() {
         <div className="grid grid-cols-3 gap-3 overflow-auto pr-1">
           {items.map((it, i) => (
             <div key={i} className="relative group">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={it.url}
                 alt={`pick-${i}`}

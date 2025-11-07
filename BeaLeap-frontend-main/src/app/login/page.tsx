@@ -17,7 +17,10 @@ export default function LoginPage() {
     const pass = localStorage.getItem("team_password");
     const serverSession = localStorage.getItem("server_session");
 
-
+    if (team && pass && serverSession) {
+      // User is already logged in, could redirect to main page
+      // router.replace("/");
+    }
   }, [router]);
 
   // 🧠 Handle Login

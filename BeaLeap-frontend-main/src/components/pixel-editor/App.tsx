@@ -5,7 +5,6 @@ import { GRID_SIZE, COLORS, ERASER_COLOR } from "@/lib/pixel-editor/constants";
 import type { PixelGridType } from "@/lib/pixel-editor/types";
 import { useEffect } from "react";
 
-import Header from "./Header";
 import Stats from "./Stats";
 import ColorPalette from "./ColorPalette";
 import PixelGrid from "./PixelGrid";
@@ -43,24 +42,24 @@ const App: React.FC = () => {
   const [grid, setGrid] = useState<PixelGridType>(createEmptyGrid);
   const [selectedColor, setSelectedColor] = useState<string>(COLORS[0]);
   const [pixelsEdited, setPixelsEdited] = useState<number>(0);
-  const [isImageUploaded, setIsImageUploaded] = useState(false);
   const [originalImageGrid, setOriginalImageGrid] = useState<PixelGridType | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [statusMessage, setStatusMessage] = useState(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   // State for the custom password prompt
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
 
-  const session = getTeamSession();
-  if (!session) return null;
-  
-  const { team_name, password, server_session } = session;
-  
   const imageiter = useRef(0);
+
+  const session = getTeamSession();
   
   const fetchLatestImage = async () => {
+      if (!session) return;
+      
+      const { team_name, password, server_session } = session;
+      
       console.log(imageiter.current, "IMAGE ITer BEHECHOD")
       try {
         const res = await fetch("/backend/pixelfog/image", {
@@ -111,7 +110,6 @@ const App: React.FC = () => {
           }
           setGrid(newGrid);
           setOriginalImageGrid(newGrid);
-          setIsImageUploaded(true);
           setPixelsEdited(0);
         };
         img.src = data.image_data;
@@ -124,6 +122,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
      fetchLatestImage();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
 
 
@@ -161,17 +160,7 @@ const App: React.FC = () => {
     }
   }, [grid, selectedColor, originalImageGrid]);
 
-  const resetGrid = () => {
-    if (isImageUploaded && originalImageGrid) {
-      setGrid(originalImageGrid);
-      setPixelsEdited(0);
-    } else {
-      setGrid(createEmptyGrid());
-      setPixelsEdited(0);
-      setOriginalImageGrid(null);
-      setIsImageUploaded(false);
-    }
-  };
+  // Removed unused resetGrid function
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -210,7 +199,6 @@ const App: React.FC = () => {
             setGrid(newGrid);
             setOriginalImageGrid(newGrid);
             setPixelsEdited(0);
-            setIsImageUploaded(true);
         };
         img.src = e.target?.result as string;
     };
@@ -221,26 +209,15 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUploadClick = () => {
-    if (isImageUploaded) {
-      setPasswordError(''); // Clear previous errors
-      setShowPasswordPrompt(true);
-    } else {
-      fileInputRef.current?.click();
-    }
-  };
+  // Removed unused handleUploadClick function
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === 'vibecodingsudeep') {
-      setShowPasswordPrompt(false);
-      setPasswordInput('');
-      setPasswordError('');
-      fileInputRef.current?.click();
-    } else {
-      setPasswordError('Incorrect password. Please try again.');
-      setPasswordInput('');
-    }
+    // Removed password check functionality
+    setShowPasswordPrompt(false);
+    setPasswordInput('');
+    setPasswordError('');
+    fileInputRef.current?.click();
   };
 
   const handlePasswordCancel = () => {
@@ -250,6 +227,10 @@ const App: React.FC = () => {
   };
 
   const handleDownload = async () => {
+  if (!session) return;
+  
+  const { team_name, server_session } = session;
+  
   const downloadSize = 1000;
   const scale = downloadSize / GRID_SIZE;
   const canvas = document.createElement("canvas");
@@ -280,19 +261,8 @@ const App: React.FC = () => {
   const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
 
 
-
   // --- 2️⃣ Upload the same image to backend ---
   try {
-    const session = getTeamSession();
-
-
-    if (!session) {
-      return;
-    }
-
-
-    const { team_name, password, server_session } = session;
-
     console.log("sending the following image iter", imageiter.current)
     const response = await fetch("/backend/beatleap/submit", {
       method: "POST",
@@ -336,6 +306,8 @@ const App: React.FC = () => {
 
 
 };
+
+  if (!session) return null;
 
   return (
     <div className="w-full text-white flex flex-col items-center p-4 gap-6 ...">

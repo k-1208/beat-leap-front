@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 export default function BeatLeap() {
   const router = useRouter();
-  const [status, setStatus] = useState<any>(null);
+  const [status, setStatus] = useState<Record<string, boolean> | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -80,11 +80,13 @@ export default function BeatLeap() {
 
     return open ? (
       <Link href={href} className={`${base} hover:-translate-y-2`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={img} alt={label} className="h-28 mb-5" />
         <div className="text-sm tracking-[2px] text-[#FFC9F0]">{label}</div>
       </Link>
     ) : (
       <div className={`${base} ${disabled}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={img} alt={label} className="h-28 mb-5" />
         <div className="text-sm tracking-[2px] text-[#999]">{label} (Closed)</div>
       </div>
@@ -95,6 +97,7 @@ export default function BeatLeap() {
     <div className="fixed inset-0 overflow-hidden bg-gradient-to-b from-[#1a0a2e] to-[#0f0520] text-white font-['Press_Start_2P'] flex flex-col items-center justify-center">
       {/* Logo */}
       <div className="absolute top-8 left-10 z-10">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/images/leap_purple 1.png" alt="LEAP Experience" className="w-24" />
       </div>
 

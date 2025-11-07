@@ -1,25 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Link from "next/link";
-import Image from "next/image";
-import { Press_Start_2P, Pixelify_Sans } from "next/font/google";
-
-
-
-const pressStart = Press_Start_2P({
-  subsets: ["latin"],
-  weight: "400",          // Press Start 2P only has 400
-  display: "swap",
-  variable: "--font-press-start",
-});
-
-const pixelify = Pixelify_Sans({
-  subsets: ["latin"],
-  weight: ["400", "700"], // choose what you need
-  display: "swap",
-  variable: "--font-pixelify",
-});
 
 
 const inter = Inter({
