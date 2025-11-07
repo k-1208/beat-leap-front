@@ -6,7 +6,7 @@ export async function submitTextAnswer(
   prompt: string
 ) {
   try {
-    const response = await fetch("https://api.beatleap.leapai.club//submit", {
+    const response = await fetch("https://api.beatleap.leapai.club/submit", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -30,7 +30,7 @@ export async function submitTextAnswer(
 export async function fetchSubmissions(id: string) {
   try {
     const response = await fetch(
-      "https://api.beatleap.leapai.club//submissions?prompt_id=" + id
+      "https://api.beatleap.leapai.club/submissions?prompt_id=" + id
     );
 
     return await response.json();

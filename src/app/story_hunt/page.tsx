@@ -2,8 +2,8 @@
 import React, { useMemo, useRef, useState } from "react";
 import { getTeamSession } from "@/lib/session";
 
-const UPLOAD_ENDPOINT = "https://api.beatleap.leapai.club//images/upload";
-const TEXT_ENDPOINT   = "https://api.beatleap.leapai.club//story/submit";
+const UPLOAD_ENDPOINT = "https://api.beatleap.leapai.club/images/upload";
+const TEXT_ENDPOINT   = "https://api.beatleap.leapai.club/story/submit";
 const MAX_FILES = 10;
 const MAX_WORDS = 200;
 
