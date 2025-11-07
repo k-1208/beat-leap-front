@@ -31,7 +31,6 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({ selectedColor, onColorSelec
             }`}
             aria-label="Select eraser"
         >
-            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>ink_eraser</span>
             <span>Eraser</span>
         </button>
     </div>

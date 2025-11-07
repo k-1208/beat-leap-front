@@ -1,9 +1,10 @@
+
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { getTeamSession } from "@/lib/session"; // adjust import path
 
 export default function AIorNOT() {
-  const [timeLeft, setTimeLeft] = useState(480); // 8 minutes
+  const [timeLeft, setTimeLeft] = useState(1800); // 8 minutes
   const [score, setScore] = useState(0);
   const [currentImage, setCurrentImage] = useState<{ url: string } | null>(null);
   const [feedback, setFeedback] = useState("");
@@ -15,7 +16,7 @@ export default function AIorNOT() {
 
   const { team_name, password, server_session } = session;
 
-  let imageiter = 0;
+  const imageiter = useRef(0); // ✅ persists across renders
 
   // --- Load next image (authenticated) ---
   const loadNextImage = async () => {
@@ -28,7 +29,7 @@ export default function AIorNOT() {
           password,
           session_id: "session_001",
           server_session,
-          imageiter
+          imageiter: imageiter.current
         }),
       });
 
@@ -40,10 +41,11 @@ export default function AIorNOT() {
         return;
       }
       
-      imageiter += 1
       const data = await res.json();
       if (data.image_url == "game over") {
         setCurrentImage({ url: ""})
+        submitScore();
+        window.location.href = "/"
       }
       setCurrentImage({ url: data.image_url });
       setFeedback("");
@@ -67,6 +69,7 @@ export default function AIorNOT() {
           session_id: "session_001",
           server_session,
           user_guess: guessIsAI ? "ai" : "human",
+          imageiter: imageiter.current
         }),
       });
 
@@ -79,10 +82,13 @@ export default function AIorNOT() {
       }
 
       const data = await res.json();
-      setFeedback(data.result);
-      if (data.correct) setScore((s) => s + 10);
+      setFeedback(data.result); // ✅ show feedback immediately
 
-      loadNextImage()
+      // Delay loading the next image to let user SEE the feedback
+      setTimeout(() => {
+        imageiter.current += 1; // ✅ increment persistent counter
+        loadNextImage();
+      }, 1200); 
     } catch (err) {
       console.error("Error verifying guess:", err);
     }
@@ -92,35 +98,17 @@ export default function AIorNOT() {
   const submitScore = async () => {
     try {
       setIsSubmitting(true);
-      // const res = await fetch("http://localhost:3000/submitscore", {
-      //   method: "POST",
-      //   body: JSON.stringify({
-      //     team_name,
-      //     score,
-      //     session_id: "session_001",
-      //     server_session: server_session, 
-      //   }),
-      // });
-
-      const res = await fetch("http://localhost:3000/you", {
+      const res = await fetch("http://localhost:3000/submitscore", {
         method: "POST",
+        body: JSON.stringify({
+          team_name,
+          score,
+          server_session: server_session, 
+        }),
       });
 
-      const data = await res.json()
-
-      // if (!res.ok) {
-      //   if (res.status === 401) {
-      //     alert("Session expired. Please log in again.");
-      //     window.location.href = "/login";
-      //   } else {
-      //     console.log(res.status, "kkkk");
-      //     alert("Failed to submit score!");
-      //   }
-      //   return;
-      // }
-
       // const data = await res.json();
-      // alert(`✅ Score submitted successfully! Server says: ${data.message || "OK"}`);
+      // alert(✅ Score submitted successfully! Server says: ${data.message || "OK"});
     } catch (err) {
       console.error("Error submitting score:", err);
       alert("Error submitting score. Check console for details.");
@@ -170,12 +158,12 @@ export default function AIorNOT() {
       </div>
 
       {/* Timer */}
-      <div className="absolute top-8 right-10 z-10 text-3xl text-[#FFD4EB] [text-shadow:_0_0_10px_#FFD4EB]">
+      <div className="absolute top-8 right-10 z-10 text-3xl text-[#FFD4EB] [text-shadow:0_0_10px#FFD4EB]">
         {formatTime(timeLeft)}
       </div>
 
       {/* Title */}
-      <h1 className="text-center text-[60px] text-[#FFD4EB] mb-10 whitespace-nowrap animate-[neonPulse_2.5s_ease-in-out_infinite] [text-shadow:_0_0_10px_#FFD4EB,_0_0_20px_#FF99CC,_0_0_40px_#FF33CC,_0_0_80px_#FF00FF]">
+      <h1 className="text-center text-[60px] text-[#FFD4EB] mb-10 whitespace-nowrap animate-[neonPulse_2.5s_ease-in-out_infinite] [text-shadow:0_0_10px#FFD4EB,0_0_20px#FF99CC,0_0_40px#FF33CC,0_0_80px#FF00FF]">
         AI or NOT
       </h1>
 
@@ -206,7 +194,6 @@ export default function AIorNOT() {
               )}
             </div>
           </div>
-          <div>Tip: Click to enlarge</div>
         </div>
       </div>
 
@@ -227,19 +214,6 @@ export default function AIorNOT() {
             AI
           </button>
         </div>
-
-        {/* SUBMIT BUTTON */}
-        <button
-          onClick={submitScore}
-          disabled={isSubmitting}
-          className={`w-[250px] h-[70px] mt-4 text-2xl rounded-xl tracking-widest ${
-            isSubmitting
-              ? "bg-gray-600 cursor-not-allowed"
-              : "bg-[#4CAF50] hover:bg-[#66BB6A] shadow-[0_8px_20px_rgba(76,175,80,0.4)] hover:-translate-y-2 transition-all"
-          }`}
-        >
-          {isSubmitting ? "SUBMITTING..." : "SUBMIT SCORE"}
-        </button>
       </div>
 
       {/* Floor grid (unchanged) */}

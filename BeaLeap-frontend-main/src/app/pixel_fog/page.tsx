@@ -21,7 +21,7 @@ export default function PixelFogPage() {
       {/* Content container */}
       <div className="relative z-10 mx-auto max-w-7xl px-4 pt-20 pb-24">
         {/* Title */}
-        <h1 className="mb-8 text-center text-[60px] font-normal text-[#FFD4EB] whitespace-nowrap animate-[neonPulse_2.5s_ease-in-out_infinite] [text-shadow:_0_0_10px_#FFD4EB,_0_0_20px_#FF99CC,_0_0_40px_#FF33CC,_0_0_80px_#FF00FF]">
+        <h1 className="mb-8 text-center text-[60px] font-normal text-[#FFD4EB] whitespace-nowrap animate-[neonPulse_2.5s_ease-in-out_infinite] [text-shadow:0_0_10px#FFD4EB,0_0_20px#FF99CC,0_0_40px#FF33CC,0_0_80px#FF00FF]">
           Pixel Fog
         </h1>
 

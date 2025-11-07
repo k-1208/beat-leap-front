@@ -99,7 +99,7 @@ export default function BeatLeap() {
       </div>
 
       {/* Title */}
-      <h1 className="text-center text-[100px] text-[#FFD4EB] mb-10">BEAT LEAP</h1>
+      <h1 className="text-center text-[100px] text-[#FFD4EB] mb-10  animate-[neonPulse_2.5s_ease-in-out_infinite] [text-shadow:0_0_10px#FFD4EB,0_0_20px#FF99CC,0_0_40px#FF33CC,0_0_80px#FF00FF]">BEAT LEAP</h1>
 
       {/* Game Menu */}
       <div

@@ -63,7 +63,7 @@ const App: React.FC = () => {
   const fetchLatestImage = async () => {
       console.log(imageiter.current, "IMAGE ITer BEHECHOD")
       try {
-        const res = await fetch("http://127.0.0.1:8000/pixelfog/image", {
+        const res = await fetch("/backend/pixelfog/image", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -78,6 +78,7 @@ const App: React.FC = () => {
           console.warn("No latest image found yet.");
           return;
         }
+        console.log("JJJJJ")
 
 
         const data = await res.json();
@@ -293,7 +294,7 @@ const App: React.FC = () => {
     const { team_name, password, server_session } = session;
 
     console.log("sending the following image iter", imageiter.current)
-    const response = await fetch("http://127.0.0.1:8000/beatleap/submit", {
+    const response = await fetch("/backend/beatleap/submit", {
       method: "POST",
       headers: {
     "Content-Type": "application/json",},

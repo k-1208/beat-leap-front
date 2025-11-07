@@ -17,9 +17,7 @@ export default function LoginPage() {
     const pass = localStorage.getItem("team_password");
     const serverSession = localStorage.getItem("server_session");
 
-    if (team && pass && serverSession) {
-      router.replace("/");
-    }
+
   }, [router]);
 
   // 🧠 Handle Login

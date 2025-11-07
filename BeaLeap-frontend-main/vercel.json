@@ -1,0 +1,32 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/"
+    },
+    {
+      "src": "/backend/(.*)",
+      "dest": "https://unsisterly-guitarlike-julia.ngrok-free.dev/$1"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://unsisterly-guitarlike-julia.ngrok-free.dev",
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 10
+    }
+  },
+  "github": {
+    "enabled": true,
+    "autoJobCancelation": true
+  }
+}

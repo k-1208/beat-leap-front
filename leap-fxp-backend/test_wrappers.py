@@ -5,6 +5,7 @@ from typing import Dict
 import random
 import os
 import hashlib
+import base64
 from threading import Lock
 
 from typing import List
@@ -32,6 +33,7 @@ origins = [
     "http://localhost:8000",
     "http://127.0.0.1:3000",         # Sometimes needed too
     "/backend:8000",     # Replace with your machine IP if used over LAN
+    "https://unsisterly-guitarlike-julia.ngrok-free.dev"
 ]
 
 
@@ -287,21 +289,30 @@ async def root():
     return {"message": "Oracle Guessing Game API is running!"}
 
 
-
 IMAGES = [
-    {"url": "https://i.postimg.cc/fLbyCNMM/img2.jpg", "type": "AI"},
-    {"url": "https://i.postimg.cc/fRZ9d1Sk/10085131083-86d8878012-k.jpg", "type": "Human"},
-    {"url": "https://i.postimg.cc/m279tTk1/271ffd11-8742-40e5-ad92-e002b782e9b9.jpg", "type": "AI"},
-    {"url": "https://i.postimg.cc/pLxFj35D/723b1730-eb7a-4394-bb8d-ca9670d58751.png", "type": "Human"},
-    {"url": "https://i.postimg.cc/rwcr47R0/pexels-pixabay-315191.jpg", "type": "Human"},
-    {"url": "https://i.postimg.cc/R0YhgYh1/kyle-bushnell-pw-Ly-WOAUk-Zs-unsplash.jpg", "type": "Human"},
+
+
+{"url":"https://i.postimg.cc/tRkKYh28/image.jpg", "type": "ai"},
+{"url":"https://i.postimg.cc/Kcf6RnJQ/nature-by-drone-v0-4tbi5qejjnvf1.webp", "type": "ai"},
+{"url":"https://i.postimg.cc/7ZFcpXZ2/andreia-cunha-c-Ey-Se9GOrig-unsplash.jpg", "type": "human"},
+{"url":"https://i.postimg.cc/cLg29PZ5/id-239-3c24e26aea0542efbf2c08f6f44dd90d.png", "type": "ai"},
+{"url": "https://i.postimg.cc/fLbyCNMM/img2.jpg", "type": "ai"},
+{"url": "https://i.postimg.cc/fRZ9d1Sk/10085131083-86d8878012-k.jpg", "type": "human"},
+{"url": "https://i.postimg.cc/m279tTk1/271ffd11-8742-40e5-ad92-e002b782e9b9.jpg", "type": "ai"},
+{"url": "https://i.postimg.cc/pLxFj35D/723b1730-eb7a-4394-bb8d-ca9670d58751.png", "type": "human"},
+{"url": "https://i.postimg.cc/rwcr47R0/pexels-pixabay-315191.jpg", "type": "human"},
+{"url": "https://i.postimg.cc/R0YhgYh1/kyle-bushnell-pw-Ly-WOAUk-Zs-unsplash.jpg", "type": "human"},
+
+
 ]
+
+
+
 
 IMAGE_ITER = 0
 IMAGE_MAX = len(IMAGES)
 
 current_image = {"type": None, "url": None}
-
 
 # --- Request Models ---
 class AuthRequest(BaseModel):
@@ -327,12 +338,16 @@ def get_image(request: AuthRequest):
     """Send a random image (only if authenticated)"""
     authenticate(request.team_name, request.password, request.server_session)
     if request.imageiter == IMAGE_MAX:
-        print(request.team_name,  " : ", score[request.team_name])
+        print(request.team_name,  " : ", scores[request.team_name])
         return {"image_url": "game over"}
 
     global current_image
-    current_image = IMAGES[request.imageiter]
-    return {"image_url": current_image["url"]}
+    print(request.imageiter)
+    try:
+        current_image = IMAGES[request.imageiter]
+        return {"image_url": current_image["url"]}
+    except IndexError:
+        return {"image_url": "game over"}
 
 
 
@@ -353,9 +368,19 @@ def verify_guess(request: GuessRequest):
         "result": "✓ CORRECT!" if correct else "✗ WRONG!",
         "correct": correct
     }
+
+@app.post("/submitscore")
+def score_guess(request: GuessRequest):
+    authenticate(request.team_name, request.password, request.server_session)
+    print(f"{request.team_name} : {scores[request.team_name]}")
+
+    
 import re
+from PIL import Image
+from io import BytesIO
 UPLOAD_FOLDER = "uploads/"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 @app.post("/pixelfog/image")
 def get_image(data: dict):
     if data.get("server_session") != SERVER_SESSION_KEY:
@@ -364,6 +389,7 @@ def get_image(data: dict):
     files = [f for f in os.listdir(UPLOAD_FOLDER)]
     if not files:
         raise HTTPException(status_code=404, detail="No images found.")
+    print("no image found")
 
     # Extract numbers from filenames like "1.jpg"
     def extract_num(name: str):
@@ -407,9 +433,6 @@ def submit_image(data: dict):
         return {"message": "You passed this test case!", "image_iter": 1}
     else:
         return {"message": "You have not passed this case. Try Again!", "image_iter":0}
-    
-
-
 
 # story hunt
 
@@ -422,12 +445,12 @@ from pathlib import Path
 import os, re, hashlib, json
 
 
-_UPLOAD_ROOT = Path("uploads")
+_UPLOAD_ROOT = Path("downloads")
 _UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 
 # Expose uploads at /uploads (safe if hot-reloading)
 try:
-    app.mount("/uploads", StaticFiles(directory=str(_UPLOAD_ROOT), html=False), name="uploads")
+    app.mount("/downloads", StaticFiles(directory=str(_UPLOAD_ROOT), html=False), name="downloads")
 except Exception:
     pass
 
@@ -514,7 +537,7 @@ async def images_upload(
 
         saved.append({
             "filename": final_name,
-            "url": f"/uploads/{prefix}/{final_name}",
+            "url": f"/downloads/{prefix}/{final_name}",
         })
 
     return {"status": "ok", "count": len(saved), "items": saved}
@@ -528,5 +551,5 @@ def images_list(team_name: str, password: str, server_session: str):
     items = []
     for f in sorted(td.iterdir()):
         if f.is_file():
-            items.append({"filename": f.name, "url": f"/uploads/{prefix}/{f.name}"})
+            items.append({"filename": f.name, "url": f"/downloads/{prefix}/{f.name}"})
     return {"images": items}

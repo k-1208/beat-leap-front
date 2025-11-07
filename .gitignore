@@ -47,3 +47,4 @@ apikeys.txt
 # ---- Misc ----
 *.bak
 *.tmp
+.vercel
