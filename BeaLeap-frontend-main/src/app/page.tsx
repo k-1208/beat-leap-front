@@ -14,7 +14,6 @@ export default function BeatLeap() {
       const pass = localStorage.getItem("team_password");
       const session = localStorage.getItem("server_session");
 
-      console.log(team, pass, session);
 
       // ✅ If not logged in → redirect immediately
       if (!team || !pass || !session) {
@@ -24,7 +23,6 @@ export default function BeatLeap() {
       }
 
       try {
-        console.log(`sending ${session}`)
         const res = await fetch("/backend/games/status", {
           headers: {
             "Content-Type": "application/json",
@@ -32,7 +30,6 @@ export default function BeatLeap() {
           },
         });
 
-        console.log(res.status, "JGGJJGGJGJJGJ")
 
         // 🚫 Invalid session or backend expired → force logout
         if (res.status === 401) {

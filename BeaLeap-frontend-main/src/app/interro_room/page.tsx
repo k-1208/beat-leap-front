@@ -268,7 +268,7 @@ export default function InterrogationRoom() {
   const [reply, setReply] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-
+  const [stage, setStage] = useState(1);
   async function sendPrompt() {
     if (!prompt.trim() || loading) return;
 
@@ -304,10 +304,17 @@ export default function InterrogationRoom() {
         return;
       }
 
+      if (res.status === 403) {
+        alert("You've already completed this game!");
+        window.location.href = "/";
+      }
+
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
       const data = await res.json();
-
+      if (data.response.includes("CORRECT!")) {
+        setStage((s) => s + 1);
+      }
       setScore((s) => s + 1);
       setReply(data.response || "No reply received from Oracle.");
       setPrompt("");
@@ -336,6 +343,7 @@ export default function InterrogationRoom() {
       {/* Score display */}
       <div className="absolute top-8 right-10 z-10 text-right">
         <div className="mt-1 text-3xl text-fuchsia-300 opacity-80">Prompts: {score}</div>
+        <div className="text-lg text-pink-300 mt-2">Stage: {stage}/3</div>
       </div>
 
       {/* Title */}

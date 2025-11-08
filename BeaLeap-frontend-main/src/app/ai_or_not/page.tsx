@@ -36,14 +36,22 @@ export default function AIorNOT() {
           alert("Not logged in. Redirecting to login...");
           window.location.href = "../login";
         }
+
+        if (res.status === 403) {
+          alert("You've already completed this game!");
+          window.location.href = "/";
+        }
         return;
       }
       
       const data = await res.json();
       if (data.image_url == "game over") {
+
+        await submitScore();
         setCurrentImage({ url: ""})
-        submitScore();
-        window.location.href = "/"
+
+        // window.location.href = "/"
+        return
       }
       setCurrentImage({ url: data.image_url });
       setFeedback("");
@@ -99,13 +107,13 @@ export default function AIorNOT() {
     if (!session) return;
     
     const { team_name, server_session } = session;
-    
     try {
-      await fetch("http://localhost:3000/submitscore", {
+      await fetch("/backend/submitaiornot", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           team_name,
-          server_session: server_session, 
+          server_session: server_session,
         }),
       });
 

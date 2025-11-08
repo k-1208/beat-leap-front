@@ -60,7 +60,7 @@ const App: React.FC = () => {
       
       const { team_name, password, server_session } = session;
       
-      console.log(imageiter.current, "IMAGE ITer BEHECHOD")
+
       try {
         const res = await fetch("/backend/pixelfog/image", {
           method: "POST",
@@ -77,8 +77,8 @@ const App: React.FC = () => {
           console.warn("No latest image found yet.");
           return;
         }
-        console.log("JJJJJ")
 
+        
 
         const data = await res.json();
         const img = new Image();
@@ -114,7 +114,7 @@ const App: React.FC = () => {
         };
         img.src = data.image_data;
         imageiter.current = data.image_iter;
-        console.log("post loading, imageiter is now", data.image_iter)
+
       } catch (err) {
         console.error("Error loading latest image:", err);
       }
@@ -263,7 +263,6 @@ const App: React.FC = () => {
 
   // --- 2️⃣ Upload the same image to backend ---
   try {
-    console.log("sending the following image iter", imageiter.current)
     const response = await fetch("/backend/beatleap/submit", {
       method: "POST",
       headers: {
@@ -284,7 +283,7 @@ const App: React.FC = () => {
       alert("Upload failed. Please try again.");
     } else {
       const result = await response.json();
-      console.log(result["message"]);
+
       imageiter.current += result["image_iter"]
 
 

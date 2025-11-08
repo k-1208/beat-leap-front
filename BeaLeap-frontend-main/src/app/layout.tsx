@@ -26,8 +26,7 @@ const pixelify = Pixelify_Sans({
 
 
 export const metadata: Metadata = {
-  title: "GenAI Workshop",
-  description: "GenAI Workshop",
+  title: "Beat the Leap",
   icons: {
     icon: "/vercel.svg",
   },
@@ -39,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${pressStart.variable} ${pixelify.variable}`>
+    <html lang="en" className={`${pressStart.variable} ${pixelify.variable}`}>
       <body
         className={`antialiased mx-4 min-h-screen bg-black text-white p-4 ${inter.className} flex flex-col`}
       >
