@@ -10,6 +10,21 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
+const pressStart = Press_Start_2P({
+  subsets: ["latin"],
+  weight: "400",          // Press Start 2P only has 400
+  display: "swap",
+  variable: "--font-press-start",
+});
+
+const pixelify = Pixelify_Sans({
+  subsets: ["latin"],
+  weight: ["400", "700"], // choose what you need
+  display: "swap",
+  variable: "--font-pixelify",
+});
+
+
 export const metadata: Metadata = {
   title: "GenAI Workshop",
   description: "GenAI Workshop",
@@ -24,7 +39,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${pressStart.variable} ${pixelify.variable}`>
       <body
         className={`antialiased mx-4 min-h-screen bg-black text-white p-4 ${inter.className} flex flex-col`}
       >
