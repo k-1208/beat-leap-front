@@ -314,6 +314,21 @@ export default function InterrogationRoom() {
       const data = await res.json();
       if (data.response.includes("CORRECT!")) {
         setStage((s) => s + 1);
+      } else if (data.response.includes("YOU WIN")) {
+          try {
+    await fetch("/backend/submitwin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        team_name,
+        server_session,
+        score, // your score variable
+      }),
+    });
+    console.log("Score submitted successfully!");
+  } catch (err) {
+    console.error("Error submitting score:", err);
+  }
       }
       setScore((s) => s + 1);
       setReply(data.response || "No reply received from Oracle.");

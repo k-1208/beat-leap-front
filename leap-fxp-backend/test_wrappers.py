@@ -62,14 +62,41 @@ def get_games_status(server_session: str = Header(None)):
 # Pre-set team logins (you can load from a real DB or file)
 teams = {
     "test": hashlib.sha256("test".encode()).hexdigest(),
-    "team_orion": hashlib.sha256("star456".encode()).hexdigest(),
-    "team_zenith": hashlib.sha256("peak789".encode()).hexdigest(),
+    "team1": hashlib.sha256("4827".encode()).hexdigest(),
+    "team2": hashlib.sha256("1904".encode()).hexdigest(),
+    "team3": hashlib.sha256("7532".encode()).hexdigest(),
+    "team4": hashlib.sha256("6289".encode()).hexdigest(),
+    "team5": hashlib.sha256("3178".encode()).hexdigest(),
+    "team6": hashlib.sha256("9406".encode()).hexdigest(),
+    "team7": hashlib.sha256("5521".encode()).hexdigest(),
+    "team8": hashlib.sha256("8640".encode()).hexdigest(),
+    "team9": hashlib.sha256("7315".encode()).hexdigest(),
+    "team10": hashlib.sha256("2958".encode()).hexdigest(),
+    "team11": hashlib.sha256("4763".encode()).hexdigest(),
+    "team12": hashlib.sha256("8091".encode()).hexdigest(),
+    "team13": hashlib.sha256("6654".encode()).hexdigest(),
+    "team14": hashlib.sha256("1387".encode()).hexdigest(),
+    "team15": hashlib.sha256("9275".encode()).hexdigest(),
+    "team16": hashlib.sha256("5048".encode()).hexdigest(),
 }
-
 scores = {
-    "test" : 0,
-    "team_orion": 0,
-    "team_zenith": 0
+    "test": 0,
+    "team1": 0,
+    "team2": 0,
+    "team3": 0,
+    "team4": 0,
+    "team5": 0,
+    "team6": 0,
+    "team7": 0,
+    "team8": 0,
+    "team9": 0,
+    "team10": 0,
+    "team11": 0,
+    "team12": 0,
+    "team13": 0,
+    "team14": 0,
+    "team15": 0,
+    "team16": 0,
 }
 
 
@@ -195,7 +222,7 @@ class GuessingGame:
                 self.current_stage += 1
                 if self.current_stage >= len(self.secret_phrases):
                     interrogationcompleted.add(team_name)  # ✅ mark as finished
-                    return f"🏆 YOU WIN! All three secrets revealed in {self.prompt_count} prompts!"
+                    return f"🏆 YOU WIN! All three secrets revealed!"
                 
                 else:
                     return f"🔥 CORRECT! Stage {self.current_stage} cleared. Proceed to Stage {self.current_stage + 1}..."
@@ -260,6 +287,17 @@ async def ask_oracle(message: AskRequest):
             detail=f"Oracle malfunction: {str(e)}"
         )
 
+
+class WinScoreRequest(BaseModel):
+    team_name: str
+    server_session: str
+    score: int
+
+@app.post("/submitwin")
+def submit_win_score(request: WinScoreRequest):
+    authenticate(request.team_name, None, request.server_session)
+
+    return {"message": f"Score {request.score} saved for team {request.team_name}."}
 
 @app.get("/")
 async def root():
